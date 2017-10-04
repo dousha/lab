@@ -36,6 +36,8 @@ double calc(const char op, double left, double right){
 			return left * right;
 		case '/':
 			return left / right;
+		case '^':
+			return pow(left, right);
 		default:
 			return NAN;
 	}
@@ -52,7 +54,7 @@ void strrcpy(const char* src, char* dest, size_t from, size_t to){
 
 uint8_t isNumber(const char* str, size_t from, size_t to){
 	// matches:
-	// [+-]?\.?([0-9]+)(\.?[0-9]+)?([eE]?[+-]?[0-9]+)?
+	// [+-]?\.?([0-9]+)(\.?[0-9]+)?([eE][+-]?[0-9]+)?
 	if(strlen(str) == 0) return 0;
 	size_t i = 0;
 	uint8_t hasE = 0, hasSign = 0, hasPrefix = 0, hasDecimal = 0;
@@ -76,8 +78,9 @@ uint8_t isNumber(const char* str, size_t from, size_t to){
 }
 
 double eval(const char* exp){
-	// dbg
+#ifdef DEBUG
 	printf("Evaluating: %s\n", exp);
+#endif
 	// number literal?
 	if(isNumber(exp, 0, strlen(exp))){
 		return strtod(exp, NULL);
@@ -101,8 +104,9 @@ double eval(const char* exp){
 		}
 		if(i == cpr - 1){
 			// strip out outer bracket
-			// dbg
+#ifdef DEBUG
 			printf("Stripped outer bracket.\n");
+#endif
 			++cpl;
 			--cpr;
 			// number literal?
@@ -162,6 +166,33 @@ double eval(const char* exp){
 			}
 		}
 		if(exp[cpm] == '*' || exp[cpm] == '/'){
+			char* lstr = malloc(sizeof(char) * cpm);
+			char* rstr = malloc(sizeof(char) * (cpr - cpm + 1));
+			strrcpy(exp, lstr, cpl, cpm);
+			strrcpy(exp, rstr, cpm + 1, cpr);
+			double lval = eval(lstr);
+			double rval = eval(rstr);
+			free(lstr);
+			free(rstr);
+			return calc(exp[cpm], lval, rval);
+		}
+	}
+	// maybe we like... ^ ?
+	for(cpm = cpl; cpm < cpr; cpm++){
+		// skip blocks
+		if(exp[cpm] == '('){
+			size_t count = 0;
+			for(; cpm < cpr; cpm++){
+				if(exp[cpm] == '('){
+					++count;
+					continue;
+				}
+				if(exp[cpm] == ')'){
+					if(--count == 0) break;
+				}
+			}
+		}
+		if(exp[cpm] == '^'){
 			char* lstr = malloc(sizeof(char) * cpm);
 			char* rstr = malloc(sizeof(char) * (cpr - cpm + 1));
 			strrcpy(exp, lstr, cpl, cpm);
